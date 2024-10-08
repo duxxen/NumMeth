@@ -277,7 +277,7 @@ int lab1()
 	cout << "alpha_p = \n" << alpha6 << endl;
 	cout << "-------------------------\n";
 
-	std::ofstream fout("lab1/abs_alpha.csv");
+	std::ofstream fout("lab1/lab1_output.csv");
 	if (!fout.is_open())
 	{
 		cout << "Error occuried while opening file!\n";
