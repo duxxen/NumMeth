@@ -98,7 +98,14 @@ tuple<vect, vect, double, size_t> SeidelMethod(const matr& A, const vect& b, con
 	do
 	{
 		xp = x;
-		x = C * xp + d;
+		for (int i = 0; i < n; i++)
+		{
+			x[i] = 0;
+			for (int j = 0; j < n; j++)
+				x[i] += C[i][j] * x[j];
+			x[i] += d[i];
+		}
+
 		r = A * x - b;
 		rn = norm2(r);
 		en = norm2(x - xp);
