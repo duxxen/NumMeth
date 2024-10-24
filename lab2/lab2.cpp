@@ -1,144 +1,92 @@
 #include "lab2.h"
 #include "../lab1/lab1.h"
 
-double quad(const func& f, double a, double b, long double eps)
+int K, N, C;
+double a, b;
+double cp, cq;
+
+double fp(double x) 
+{
+	return sin(N * pow(x, (K % 4) + 2)) + cos(2 * K) * x + C;
+}
+
+double fq(double x) 
+{
+	return pow(sin(N * x), 2) * exp(cos(K * x)) + pow(cos(K * x), 2) * pow(atan(x * sin(N * x)), 2) / double(K + 1);
+}
+
+double dfp(double x)
+{
+	double s = (K % 4 + 2);
+	return s * N * pow(x, s - 1) * cos(N * pow(x, s)) + cos(2 * K);
+}
+
+double u(double x)
+{
+	return pow(sin(M_PI * (x - b) / (b - a)), 2);
+}
+
+double du(double x)
+{
+	return M_PI * cos(M_PI * (x - b) / (b - a)) / (b - a);
+}
+
+double ddu(double x)
+{
+	return 2 * pow(M_PI, 2) * cos(2 * M_PI * (x - b) / (b - a)) / pow(b - a, 2);
+}
+
+double fc(double x)
+{
+	return -dfp(x) * du(x) - fp(x) * ddu(x) + fq(x) * u(x);
+}
+
+double ff(double x)
+{
+	return -cp * ddu(x) + cq * u(x);
+}
+
+double quad(func f, double a, double b, double q)
 {
 	double sum = 0.0;
-	for (long double x = a; x < b; x += eps)
+	for (long double x = a; x <= b; x += q)
 	{
-		long double xn = x + eps;
+		long double xn = x + q;
 		sum += f((x + xn) / 2.0) * (xn - x);
 	}
-
 	return sum;
 }
 
-double Simpson(const func& f, double a, double b, long double h)
+double simp(func f, double a, double b, double q)
 {
-	double sum1 = 0.0;
-	double sum2 = 0.0;
-	for (auto x = a + h; x < b; x += 2 * h)
-		sum1 += f(x);
-	for (auto x = a + 2 * h; x < b; x += 2 * h)
-		sum2 += f(x);
-
-	return h / 3.0 * (f(a) + f(b) + 4 * sum1 + 2 * sum2);
+	return 0;
 }
 
-pair<matr, vect> createSLE(const func& p, const func& q, const func& f, double h, double a, double b, long double eps, IntegralFunc ifunc)
+pair<matr, vect> createCSLE(double h)
 {
 	size_t n = (b - a) / h;
-	matr C(n, vect(n, 0));
-	vect d(n, 0);
+	matr A1 = createThermalMatrix(n, 1);
+	matr A2 = A1;
+	for (auto& str : A2)
+		for (auto& v : str)
+			v *= v;
 
-	/*for (auto k = 0; k < n; k++)
-	{
-		double xi = a + k * h;
-		double xp = xi - h;
-		double xn = xi + h;
+	cout << A1 << endl << A2 << endl;
 
-		if (k > 0)
-			C[k][k - 1] = 1.0 / h - 1.0 / pow(h, 2) * (
-				+ifunc([xp, xi, &q](double x) { return q(x) * (x - xi) * (x - xp); }, xp, xi, eps)
-				+ifunc([xp, xi, &p](double x) { return p(x) * (x - xp); }, xi, xn, eps)
-				);
-
-		if (k < n - 1)
-			C[k][k + 1] = 1.0 / h - 1.0 / pow(h, 2) * (
-				+ifunc([xi, xn, &q](double x) { return q(x) * (x - xi) * (x - xn); }, xi, xn, eps)
-				+ifunc([xi, xn, &p](double x) { return p(x) * (x - xn); }, xi, xn, eps)
-				);
-
-		C[k][k] = -2.0 / h + 1.0 / pow(h, 2) * (
-			+ifunc([xp, xi, &p](double x) { return p(x) * (x - xp); }, xp, xi, eps)
-			+ifunc([xp, xi, &q](double x) { return q(x) * pow(x - xp, 2); }, xp, xi, eps)
-			+ifunc([xi, xn, &p](double x) { return p(x) * (x - xn); }, xp, xi, eps)
-			+ifunc([xi, xn, &q](double x) { return q(x) * pow(x - xn, 2); }, xp, xi, eps)
-		);
-
-		d[k] = 1.0 / h * (
-			+ifunc([xp, xi, &f](double x) { return f(x) * (x - xp); }, xp, xi, eps)
-			-ifunc([xi, xn, &f](double x) { return f(x) * (x - xn); }, xi, xn, eps)
-			);
-	}*/
-
-	for (auto k = 0; k < n; k++)
-	{
-		double xi = a + k * h;
-		double xp = xi - h;
-		double xn = xi + h;
-
-		if (k > 0)
-		C[k][k - 1] = 1.0 / pow(h, 2) * (
-			+ifunc([xp, xi, &q](double x) { return q(x) * (xi - x) * (x - xp); }, xp, xi, eps)
-			-ifunc(p, xp, xi, eps)
-		);
-
-		if (k < n - 1)
-		C[k][k + 1] = 1.0 / pow(h, 2) * (
-			+ifunc([xi, xn, &q](double x) { return q(x) * (x - xi) * (xn - x); }, xi, xn, eps)
-			-ifunc(p, xi, xn, eps)
-		);
-
-		C[k][k] = (
-			2.0 / pow(h, 2) * ifunc(p, xp, xn, eps) + 1.0 / pow(h, 2) * (
-				+ifunc([xp, xi, &q](double x) { return q(x) * pow(x - xp, 2); }, xp, xi, eps)
-				+ifunc([xi, xn, &q](double x) { return q(x) * pow(xn - x, 2); }, xi, xn, eps)
-			));
-
-		d[k] = 1.0 / h * (
-			+ifunc([xp, xi, &f](double x) { return f(x) * (x - xp); }, xp, xi, eps)
-			+ifunc([xi, xn, &f](double x) { return f(x) * (xn - x); }, xi, xn, eps)
-		);
-	}
-
-	return { C, d };
+	return std::make_pair(matr(), vect());
 }
 
-int lab2()
+pair<matr, vect> createFSLE(double h)
 {
-	double C = 120;
-	size_t N = 9;
-	size_t K = 83;
-	double a = (M_PI * (N + 10));
-	double b = a + K / 50.0 + 2;
-	double h = 1.0 / 10;
+	return std::make_pair(matr(), vect());
+}
 
-	cout << a << endl;
-	cout << b << endl;
-
-	func p = [N, K, C](double x) { return sin(N * pow(x, K % 4 + 2)) + cos(2*K)*x + C; };
-	func q = [N, K](double x) { return pow(sin(N * x), 2) * exp(cos(K * x)) + pow(cos(K * x), 2) * pow(atan(x * sin(N * x)), 2) / (K + 1); };
-	func f = [a, b, &p, &q](double x) { 
-		if (x == a || x == b) 
-			return 0.0;
-
-		return q(x) * pow(sin(x), 2) - p(x) * (2 * pow(cos(x), 2) - 2 * pow(sin(x), 2));
-	};
-
-	auto [A, d] = createSLE(p, q, f, h, a, b);
-
-	auto [u, r, rn, it] = SeidelMethod(A, d, d, 10e-10);
-
-	cout << "u =\n";
-	for (auto& v : u)
-		cout << v << endl;
-	cout << "it = " << it << endl;
-
-
-	std::ofstream fout("lab2/lab2_output.csv");
-	if (!fout.is_open())
-	{
-		cout << "Error occuried while opening file!\n";
-		return 1;
-	}
-
-	for (auto i = 0; i < u.size(); i++)
-	{
-		fout << a + h * i << ";" << u[i] << endl;
-	}
-
-	fout.close();
-
-	return 0;
+void lab2()
+{
+	N = 9;
+	K = 83;
+	a = M_PI * (N + 10);
+	b = a + K / 50.0 + 2;
+	double h = 0.1;
+	createCSLE(h);
 }

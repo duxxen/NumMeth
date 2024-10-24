@@ -106,7 +106,7 @@ tuple<vect, vect, double, size_t> SeidelMethod(const matr& A, const vect& b, con
 		if (i == q)
 			break;
 		i++;
-	} while (rn > eps);
+	} while (en > eps);
 
 	return { x, r, rn, i };
 }

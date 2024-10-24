@@ -2,16 +2,25 @@
 #include "../utils/mathex.h"
 #include "../utils/definitions.hpp"
 
-#define Q_EPS 1e-6
+extern int K, N, C;
+extern double a, b;
+extern double cp, cq;
 
-typedef function<double(func, double, double, long double)> IntegralFunc;
+double fp(double x);
+double fq(double x);
+double dfp(double x);
 
-// returns integral of func(f) at segment[a, b] with accuracy(eps)
-double quad(const func& f, double a, double b, long double eps = Q_EPS);
+double u(double x);
+double du(double x);
+double ddu(double x);
 
-double Simpson(const func& f, double a, double b, long double h);
+double fc(double x);
+double ff(double x);
 
-// returns { matr A, vect b } of thermal conductivity SLE based on { func(p), func(q), func(f), grid(h), range[a, b] } using integral(ifunc) with accuracy(eps)
-pair<matr, vect> createSLE(const func& p, const func& q, const func& f, double h, double a, double b, long double eps = Q_EPS, IntegralFunc ifunc = quad);
+double quad(func f, double a, double b, double q);
+double simp(func f, double a, double b, double q);
 
-int lab2();
+pair<matr, vect> createCSLE(double h);
+pair<matr, vect> createFSLE(double h);
+
+void lab2();
