@@ -41,6 +41,7 @@ long double Simpson(const func& f, long double a, long double b, long double h)
 	return h / 3.0 * (f(a) + f(b) + 4 * sum1 + 2 * sum2);
 }
 
+// functions p, q method
 pair<matr, vect> createSLE(const func& p, const func& q, const func& f, long double h, long double a, double b, long double eps, IntegralFunc ifunc)
 {
 	size_t n = (b - a) / h;
@@ -49,23 +50,26 @@ pair<matr, vect> createSLE(const func& p, const func& q, const func& f, long dou
 
 	for (auto k = 0; k < n; k++)
 	{
-		long double xi = a + k * h;
+		long double xi = a + (k + 1) * h;
 		long double xp = xi - h;
 		long double xn = xi + h;
 		
-		auto m = 1.0 / pow(h, 3);
-		if (k > 0)
+		auto m = 1.0 / pow(h, 3); // коэффициент матриц 
+		if (k > 0) // над главной 
 		{
 			auto ip = -ifunc(p, xp, xi, eps);
 			auto iq = +ifunc([=](double x) { return q(x) * (x - xp) * (xi - x); }, xp, xi, eps);
-			C[k][k - 1] = m * (ip + iq);
+			C[k][k - 1] = m * (ip + iq); 
 		}
-		if (k < n - 1)
+
+		if (k < n - 1) // под главной
 		{
 			auto ip = -ifunc(p, xi, xn, eps);
 			auto iq = +ifunc([=](double x) { return q(x) * (x - xi) * (xn - x); }, xi, xn, eps);
 			C[k][k + 1] = m * (ip + iq);
 		}
+
+		// главная диагональ
 		auto ip = ifunc(p, xp, xn, eps);
 		auto iq1 = ifunc([=](double x) { return q(x) * pow(x - xp, 2); }, xp, xi, eps);
 		auto iq2 = ifunc([=](double x) { return q(x) * pow(xn - x, 2); }, xi, xn, eps);
@@ -81,7 +85,8 @@ pair<matr, vect> createSLE(const func& p, const func& q, const func& f, long dou
 	return { C, d };
 }
 
-pair<matr, vect> createSLE(long double p, long double q, const func& f, long double h, long double a, double b, long double eps, IntegralFunc ifunc)
+// const p, q method
+pair<matr, vect> createSLE(long double p, long double q, const func& f, long double h, long double a, double b, long double eps, IntegralFunc ifunc) 
 {
 	size_t n = (b - a) / h;
 	matr C(n, vect(n, 0));
