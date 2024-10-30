@@ -1,22 +1,21 @@
-#pragma once
-#include "../utils/mathex.h"
 #include "../utils/definitions.hpp"
+#include "../utils/mathex.h"
 
-#define Q_EPS 1e-6
+typedef function<double(const func&, double, double, long double)> IntegralFunc;
 
-typedef function<long double(func, long double, long double, long double)> IntegralFunc;
+double quad(const func& f, double a, double b, long double eps);
+double simp(const func& f, double a, double b, long double eps);
 
-// returns integral of func(f) at segment[a, b] with accuracy(eps)
-long double quad(const func& f, long double a, long double b, long double eps = Q_EPS);
+double xi(size_t i, double a, double h);
+vect fv(const func& f, const vect& x);
 
-long double Simpson(const func& f, long double a, long double b, long double h);
+matr createMatr(double p, double q, double a, double b, double h, const IntegralFunc& ifunc = quad);
+matr createMatr(const func& p, const func& q, double a, double b, double h, const IntegralFunc& ifunc = quad);
+vect createRightVect(const func& f, double a, double b, double h, const IntegralFunc& ifunc = quad);
 
-// returns { matr A, vect b } of thermal conductivity SLE based on { func(p), func(q), func(f), grid(h), range[a, b] } using integral(ifunc) with accuracy(eps)
-pair<matr, vect> createSLE(const func& p, const func& q, const func& f, long double h, long double a, double b, long double eps = Q_EPS, IntegralFunc ifunc = quad);
+tuple<vect, double, size_t> SLESolver(const matr& a, const vect& b, long double eps);
 
-// returns { matr A, vect b } of thermal conductivity SLE based on { const(p), const(q), func(f), grid(h), range[a, b] } using integral(ifunc) with accuracy(eps)
-pair<matr, vect> createSLE(long double p, long double q, const func& f, long double h, long double a, double b, long double eps = Q_EPS, IntegralFunc ifunc = quad);
-
-vect getFuncVect(const func& u, long double a, long double b, long double h);
+int printcsv(const string& path, const matr& mdata, const string& head = "", const string& del = ";");
+int printcsv(const string& path, const vect& vx, const vect& vy, const string& head = "", const string& del = ";");
 
 int lab2();
