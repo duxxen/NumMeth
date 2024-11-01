@@ -1,5 +1,6 @@
 #include "../utils/definitions.hpp"
 #include "../utils/mathex.h"
+#include "temp.h"
 
 typedef function<double(const func&, double, double, long double)> IntegralFunc;
 
@@ -9,9 +10,9 @@ double simp(const func& f, double a, double b, long double h);
 vect createXVect(double a, double b, size_t n);
 vect createVectFunc(const func& f, const vect& x);
 
-matr createMatr(double p, double q, double a, double b, double h);
-matr createMatr(const func& p, const func& q, double a, double b, double h, const IntegralFunc& ifunc = quad);
-vect createRightVect(const func& f, double a, double b, double h, const IntegralFunc& ifunc = quad);
+matr createMatr(double p, double q, double a, double b, size_t n);
+matr createMatr(const func& p, const func& q, double a, double b, size_t n, const IntegralFunc& ifunc = quad);
+vect createRightVect(const func& f, double a, double b, size_t n, const IntegralFunc& ifunc = quad);
 
 tuple<vect, double, size_t> SLESolver(const matr& a, const vect& b, const vect& x0, long double eps);
 
