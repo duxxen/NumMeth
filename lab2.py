@@ -1,10 +1,8 @@
-import math
 import numpy as np
-from scipy import integrate
 import matplotlib.pyplot as plt
+from scipy import integrate
 from typing import Callable
 
-''' 0) Исходные данные '''
 
 C = -30
 N = 9
@@ -13,11 +11,10 @@ K = 83
 a = np.pi * (N + 10)
 b = a + K / 50 + 2
 
-h = 0.0001
+h = 0.1
 n = int((b - a) / h)
 h = (b - a) / (n)
 
-''' 1) Параметры: p(x), q(x) '''
 
 def p(x: float):
     return np.sin((N * x) / np.pi) + x * np.cos(2 * N) + C
@@ -28,7 +25,6 @@ def dp(x: float):
 def q(x: float):
     return np.exp(np.cos(N * x / np.pi)) + np.pow(np.cos(N * x / 10), 2) + 1
 
-''' 2) Нетривиальный физически осмысленный пример: u(x), f(x) '''
 
 def u(x: float):
     return np.pow(np.sin(np.pi * (x - b) / (b - a)), 2)
@@ -42,72 +38,60 @@ def ddu(x: float):
 def f(x: float):
     return -dp(x) * du(x) - p(x) * ddu(x) + q(x) * u(x)
 
-''' 3)  Метод МКЭ '''
-''' 3.1) Методы рассчета интеграла '''
 
-def quad(f: Callable[[float], float], a: float, b: float, h: float):
+def quad(f: Callable[[float], float], a: float, b: float, h: float) -> float:
     return integrate.quad(f, a, b)[0]
 
-def simp(f: Callable[[float], float], a: float, b: float, h: float):
+
+def simp(f: Callable[[float], float], a: float, b: float, h: float) -> float:
     n = int((b - a) / h)
     h = (b - a) / n
-    x = np.linspace(a, b, n)
+    sum = 0
+    subf = lambda a,b: (b-a)/6.0 * (f(a) + 4*f((a+b)/2) + f(b))
+    for i in range(0, n):
+        xi = a + i * h
+        xn = xi + h
+        sum += subf(xi, xn)
+    return sum
 
-    s1 = 0
-    s2 = 0
-    for i in range(2, n-1, 2):
-        s1 += 4 * f(x[i])
-    for i in range(1, n-1, 2):
-        s2 += 2 * f(x[i])
 
-    return h/3 * (f(x[0]) + s1 + s2 + f(x[-1]))
+def getPhiIndexed(x: np.ndarray, h: np.float64, i: int)->Callable[[np.float64], np.float64]:
+    hnr: np.float64 = h*np.sqrt(h)
+    if i == 0:          return lambda t: (x[1] - t) / hnr if t <= x[1] else 0.0
+    if i == x.size - 1: return lambda t: (t - x[-2]) / hnr if t >= x[-2] else 0.0
+    else:
+        def phi(t):
+            if t >= x[i-1] and t <= x[i]:   return (t - x[i-1]) / hnr
+            elif t >= x[i] and t <= x[i+1]: return (x[i+1] - t) / hnr
+            else:                           return 0.0
+        return phi
 
-''' 3.2) Конечные функции phi(x) '''
 
-def xk(k: int) -> float:
-    return max(min(a + k * h, b), a)
-
-def phi(x: float, k: int) -> float:
-    hn = h * np.sqrt(h)
-    if xk(k-1) <= x and x <= xk(k):     return (x - xk(k-1)) / hn
-    elif xk(k) < x and x <= xk(k+1):    return (xk(k+1) - x) / hn
-    else:                               return 0
-
-''' 3.3) Генерация СЛАУ '''
-
-def createMatrix(ifunc = quad):
-    mtr = np.zeros((n-2, n-2))
-    md = np.zeros(n-2)        # главная i
-    bd = np.zeros(n-3)      # под   i-1
-    ad = np.zeros(n-3)      # над   i+1
-
-    h3 = 1 / np.pow(h, 3)
-
-    for k in range(0, n-2):
-        xkp = xk(k)
-        xki = xk(k+1)
-        xkn = xk(k+2)
-        md[k] = ifunc(lambda x: -h3 * p(x) + q(x) * np.pow(phi(x, k+1), 2), xkp, xkn, h/10)
-
-        if k == n-3: break
+def createMatrVect(n: np.float64, ifunc = quad) -> tuple[np.ndarray, np.ndarray]:
+        x, h = np.linspace(a, b, n, retstep=True)
+        h3 = 1.0 / np.pow(h, 3)
         
-        bd[k] = ifunc(lambda x: -h3 * p(x) + q(x) * phi(x, k+1) * phi(x, xki), xkp, xki, h/10)
-        ad[k] = ifunc(lambda x: -h3 * p(x) + q(x) * phi(x, k+2) * phi(x, xkn), xki, xkn, h/10)
-    
-    np.fill_diagonal(mtr, md)
-    np.fill_diagonal(mtr[:, 1:], ad)
-    np.fill_diagonal(mtr[1:, :], bd)
+        mtr = np.zeros((n-2, n-2))
+        vct = np.zeros(n-2)
+        hn = 1.0/np.sqrt(h)
 
-    return mtr
+        md = np.zeros(n-2)
+        ad = np.zeros(n-2)
+        bd = np.zeros(n-2)
 
-def createVect(ifunc = quad):
-    vct = np.zeros(n-2)
-    for k in range(n-2):
-        vct[k] = ifunc(lambda x: f(x) * phi(x, k+1), xk(k), xk(k+2), h/10)
-    
-    return 1/np.sqrt(h) * vct
+        for i in range(n-2):
+            md[i] = ifunc(lambda t: h3 * p(t) + q(t) * np.pow(getPhiIndexed(x, h, i+1)(t), 2), x[i], x[i+2], h/10)
+            vct[i] = hn * ifunc(lambda t: f(t) * getPhiIndexed(x, h, i+1)(t), x[i], x[i+2], h/10)
 
-''' 3.4) Метод решения СЛАУ из ЛР1 - Метод Зейделя '''
+            bd[i] = ifunc(lambda t: q(t) * getPhiIndexed(x, h, i)(t) * getPhiIndexed(x, h, i+1)(t) - h3 * p(t), x[i], x[i+1], h/10)
+            ad[i] = ifunc(lambda t: q(t) * getPhiIndexed(x, h, i+1)(t) * getPhiIndexed(x, h, i+2)(t) - h3 * p(t), x[i+1], x[i+2], h/10)
+            
+        np.fill_diagonal(mtr, md)
+        np.fill_diagonal(mtr[:, 1:], ad[:-1])
+        np.fill_diagonal(mtr[1:, :], bd[1:])
+
+        return mtr, vct
+
 
 def SeidelMethod(mtr: np.ndarray[float], vct: np.ndarray[float], x0: np.ndarray[float], eps = 1e-10):
     n = len(mtr)
@@ -127,8 +111,6 @@ def SeidelMethod(mtr: np.ndarray[float], vct: np.ndarray[float], x0: np.ndarray[
         converge = np.linalg.norm(x - xp) <= eps
     return x
 
-''' 3.5) Функция выполнения ЛР '''
-
 def lab2(type: str, ifunc = Callable[[float], float]):
 
     global n, h
@@ -137,13 +119,10 @@ def lab2(type: str, ifunc = Callable[[float], float]):
     axtst.set_title('Функция u(x)')
     axrh.set_title(f'Погрешность r(h)')
 
-    ''' 4) Проверка работоспособности метода '''
-
     xv = np.linspace(a, b, n) 
     uv = u(xv)
 
-    matr = createMatrix(ifunc)
-    vect = createVect(ifunc)
+    matr, vect = createMatrVect(n, ifunc)
     uh = [u(a)] + list(np.linalg.solve(matr, vect)) + [u(b)]
     r = np.sqrt(h) * np.linalg.norm(uv - uh)
     print(f'r(h={h}) = {r}')
@@ -153,9 +132,7 @@ def lab2(type: str, ifunc = Callable[[float], float]):
     axtst.grid()
     axtst.legend()
 
-    ''' 5) Многократное решение системы с изменением h = 10, 20, ..., 1000 '''
-
-    t = 5
+    t = 4
     hv = np.zeros(t)
     rv = np.zeros(t)
     for i in range(t):
@@ -165,8 +142,7 @@ def lab2(type: str, ifunc = Callable[[float], float]):
         xv = np.linspace(a, b, n)
         uv = u(xv)
 
-        matr = createMatrix(ifunc)
-        vect = createVect(ifunc)
+        matr, vect = createMatrVect(n, ifunc)
         uh = [u(a)] + list(SeidelMethod(matr, vect, vect)) + [u(b)]
 
         r = np.sqrt(h) * np.linalg.norm(uv - uh)
@@ -174,22 +150,18 @@ def lab2(type: str, ifunc = Callable[[float], float]):
         rv[i] = r
 
         print(f'[{type}]: Computing... [{i}/{t}], n={n}')
-    
-    ''' 6) Построение графика погрешности r(h) '''
 
     axrh.plot(hv, rv, color='red')
     axrh.set_yscale('log')
 
-    ''' 7) Определение порядка сходимости '''
-    print(f'h[0] = {hv[0]}\nh[1] = {hv[1]}')
-    print(f'r[0] = {rv[0]}\nr[1] = {rv[1]}')
-    print(f'p = {np.sqrt(rv[1]/rv[0])}')
+    print(f'h[1] = {hv[1]}\nh[3] = {hv[3]}')
+    print(f'r[1] = {rv[1]}\nr[3] = {rv[3]}')
 
-    plt.show()
-    
 
 
 if __name__ == '__main__':
+    lab2("quad()", quad)
+    lab2("simp()", simp)
 
-    lab2('quad()', quad)
-
+    plt.show()
+    
